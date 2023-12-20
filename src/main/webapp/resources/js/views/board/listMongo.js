@@ -17,7 +17,7 @@ $(document).ready(function() {
 			countable: true,
 			sortable: true,
 			domainId : "몽고 게시판 리스트",
-			colNames:['번호','제목','내용','작성s자', '파일이름', '작성일자','수정일자'],
+			colNames:['번호','제목','내용','작성자', '파일이름', '작성일자','수정일자'],
 			colModel: [
 				{align:"center", name: 'boardNo', key: true },
 				{align:"center", name: 'boardTitle'},
