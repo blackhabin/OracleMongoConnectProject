@@ -81,6 +81,8 @@ public class boardController{
 	 public ResponseEntity saveToMongoDB() throws IOException {
 		 System.out.println("boardSaveMongo 저장 컨트롤러");
 		 try {
+			 
+			 	// boardDAo를 안쓰고 컨트롤러에서 적용되도록 해보아라
 			 	List<boardVO> list = boardDao.getBoardsOracle();
 		        boardDao.saveMongoDB(list);
 		        System.out.println("성공");
