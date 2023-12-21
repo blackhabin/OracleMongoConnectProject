@@ -5,6 +5,7 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
@@ -16,7 +17,6 @@ import java.util.List;
 import java.util.Map;
 
 import org.bson.Document;
-
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -46,7 +46,7 @@ public class boardController{
 	//private MongoTemplate mongoTemplate;
 	
 	private Connection conn = null;
-	private PreparedStatement psmt = null;
+	private Statement psmt = null;
 	private ResultSet rs = null;
 	
 	MongoClient mongoClient = null;
@@ -182,10 +182,8 @@ public class boardController{
 	 @RequestMapping(value ="/saveToMongoDB", method = RequestMethod.POST)
 	 public ResponseEntity saveToMongoDB() throws IOException {
 		System.out.println("boardSaveMongo 저장 컨트롤러");
-		
 		try {
 			connect();
-			
 			try {
 				mongoClient = MongoClients.create("mongodb://localhost:27017");
 		        database = mongoClient.getDatabase("OMCBoard"); 
@@ -195,8 +193,8 @@ public class boardController{
 		        String sql = "SELECT * FROM BOARD";
 		        
 		        try {
-		        	psmt = conn.prepareStatement(sql);
-		        	rs = psmt.executeQuery();
+		        	psmt = conn.createStatement();
+		        	rs = psmt.executeQuery(sql);
 		        	
 		        	while (rs.next()) {
 		        		int boardNo = rs.getInt("boardNo");
