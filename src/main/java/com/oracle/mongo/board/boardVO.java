@@ -7,6 +7,7 @@ import com.fasterxml.jackson.annotation.JsonFormat;
 
 
 public class boardVO {
+	/*
 	private int boardNo;
 	private String boardTitle;
 	private String boardContent;
@@ -76,6 +77,6 @@ public class boardVO {
 	}
 
 	
-	
+	*/
 
 }
