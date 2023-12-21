@@ -140,6 +140,7 @@ public class boardController{
 			row.put("boardContent", item.get("boardContent"));
 			row.put("boardWriter", item.get("boardWriter"));
 			row.put("boardFileName", item.get("boardFileName"));
+			row.put("boardFile", item.get("boardFile"));
 			row.put("boardCreateTime", item.get("boardCreateTime"));
 			row.put("boardModifiTime", item.get("boardModifiTime"));
 			
@@ -160,8 +161,11 @@ public class boardController{
 		 	List<boardVO> list = boardDao.getBoardsOracle();
 		 	boardDao.saveMongoDB(list);
 		 	*/
-		    connect();    
-		 	List<String> list = new ArrayList<String>();
+		    connect();
+		    JSONArray jsonList = new JSONArray();
+		    JSONObject jsonDate = new JSONObject();
+		    
+		 	//List<String> list = new ArrayList<String>();
 		    System.out.println("getBoardsOracle");
 		 	String sql = "select * from BOARD";
 		 	 
@@ -181,7 +185,7 @@ public class boardController{
 			 	     String boardTitle =rs.getString("boardTitle");;
 			 	     String boardContent = rs.getString("boardContent");
 			 	     String boardWriter = rs.getString("boardWriter");
-			 	     String boardFilename = rs.getString("boardFileName");
+			 	     String boardFileName = rs.getString("boardFileName");
 			 	     Blob boardFile = rs.getBlob("boardFile");
 			 	     String boardCreateTime = boardCreateTimeStamp != null ? new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(boardCreateTimeStamp) : "null";
 			 	     String boardModifiTime = boardModifiTimeStamp != null ? new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(boardModifiTimeStamp) : "null";
@@ -191,21 +195,34 @@ public class boardController{
 			 	     query.addCriteria(Criteria.where("boardNo").is(boardNo));
 
 			 	     Update update = new Update();
+			 	     /*
 			 	     update.set("boardTitle", boardTitle);
 			 	     update.set("boardContent", boardContent);
 			 	     update.set("boardWriter", boardWriter);
-			 	     update.set("boardFileName", boardFilename);
+			 	     update.set("boardFileName", boardFileName);
 			 	     update.set("boardFile", boardFile);
 			 	     update.set("boardCreateTime", boardCreateTime);
 			 	     update.set("boardModifiTime", boardModifiTime);
+			 	     */
+			 	     
+			 	     jsonDate.put(boardTitle, update.set("boardTitle", boardTitle));
+			 	     jsonDate.put(boardContent, update.set("boardContent", boardContent));
+			 	   	 jsonDate.put(boardWriter, update.set("boardWriter", boardWriter));
+			 	  	 jsonDate.put(boardFileName, update.set("boardFileName", boardFileName));
+				 	 //jsonDate.put(boardFile, update.set("boardFile", boardFile));
+				 	 jsonDate.put(boardCreateTime, update.set("boardCreateTime", boardCreateTime));
+				 	 jsonDate.put(boardModifiTime, update.set("boardModifiTime", boardModifiTime));
+			 	
 
 			 	     // 해당 데이터가 존재하면 업데이트, 존재하지 않으면 새로운 데이터 삽입
 			 	     mongoTemplate.upsert(query, update, "OMCBoard");
 		 		    
+			 	     
+			 	     // jsonList.add(jsonDate);
 		 		     // 모든 값을 하나의 문자열로 합침
-		 		     String record = boardNo + "," + boardTitle + "," + boardContent + "," + boardWriter + "," + boardFilename + "," + boardFile + "," + boardCreateTime + "," + boardModifiTime;
+		 		     // String record = boardNo + "," + boardTitle + "," + boardContent + "," + boardWriter + "," + boardFileName + "," + boardFile + "," + boardCreateTime + "," + boardModifiTime;
 		 			 
-		 			 list.add(record);
+		 			 //list.add(record);
 		 		 }
 			 		
 		 	} catch(SQLException e) {
