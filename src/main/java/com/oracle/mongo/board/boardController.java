@@ -17,11 +17,14 @@ import java.util.List;
 import java.util.Map;
 
 import org.bson.Document;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
@@ -45,8 +48,11 @@ public class boardController{
 	//@Autowired
 	//private MongoTemplate mongoTemplate;
 	
+	private static final String TABLE_NAME = "BOARD";
+	
 	private Connection conn = null;
 	private Statement psmt = null;
+	private PreparedStatement stmt = null;
 	private ResultSet rs = null;
 	
 	MongoClient mongoClient = null;
@@ -89,6 +95,13 @@ public class boardController{
                 e.printStackTrace();
             }
         }
+        if (stmt != null) {
+            try {
+            	stmt.close();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        }
         if (conn != null) {
             try {
                 conn.close();
@@ -98,12 +111,74 @@ public class boardController{
         }
     }
 	
-	
+    
+    /*
+     * 오라클 DB에 삽입하기 위한 메서드
+     */
+    @RequestMapping(value="/boardWriteOracle", method = RequestMethod.GET)
+	public String boardWriteOracle() {
+    	System.out.println("보드 글쓰기 진입");
+	    return "board/boardWriteOracle";
+	}
+    
+    @RequestMapping(value="/saveToOracle", method = RequestMethod.POST)
+    public ResponseEntity<String> boardSaveOracle(@RequestParam("boardTitle") String boardTitle,
+                                                  @RequestParam("boardContent") String boardContent,
+                                                  @RequestParam("boardWriter") String boardWriter) throws IOException {
+        System.out.println("보드 글쓰기 저장 전");
+
+        try {
+            connect();
+            try {
+                // 시퀀스를 사용하여 boardNo 값 생성
+                String sql =    " INSERT INTO           "
+                            +   "" +TABLE_NAME+"        "
+                            +   " (                     "
+                            +   "     boardNo           " 
+                            +   "   , boardTitle        "
+                            +   "   , boardContent      "
+                            +   "   , boardWriter       "
+                            +   " )                     "
+                            +   " VALUES                "
+                            +   " (                     "
+                            +   "     BOARD_SEQ.NEXTVAL " 
+                            +   "   , ?                 "
+                            +   "   , ?                 "
+                            +   "   , ?                 "
+                            +   " )                     ";
+                System.out.println("sql 호출 후");
+                stmt = conn.prepareStatement(sql);
+                System.out.println("sql 저장");
+                stmt.setString(1, boardTitle);
+                stmt.setString(2, boardContent);
+                stmt.setString(3, boardWriter);
+                stmt.executeUpdate();
+
+                return new ResponseEntity<>("게시글이 성공적으로 저장되었습니다.", HttpStatus.OK);
+
+            } catch(SQLException e) {
+                e.printStackTrace();
+                System.out.println(e.getMessage());
+
+                return new ResponseEntity<>("데이터베이스 오류: " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+
+            }
+        } catch(Exception e) {
+            e.printStackTrace();
+            System.out.println(e.getMessage());
+
+            return new ResponseEntity<>("서버 오류: " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+
+        } finally {
+            disconnect();
+        }
+    }
+
 	
 	/*
 	 * boardList
 	 */
-	@RequestMapping("/board")
+	@RequestMapping(value="/board", method = RequestMethod.GET)
 	public String board() {
 	    return "board/boardList";
 	}
@@ -111,7 +186,7 @@ public class boardController{
 	/*
 	 * boardList에 필요한 데이터를 몽고 DB에서 호출하기 위한 메서드
 	 */
-	@RequestMapping("/board/data")
+	@RequestMapping(value="/board/data", method = RequestMethod.GET)
 	@ResponseBody
 	public JSONObject boardMongoList() {
 		

@@ -51,7 +51,8 @@
 				<table id="jqGrid"></table>
 				<div id="jqGridNavi"></div>
 			</div> 
-			<input id="subBtn" type="button" value="몽고DB저장" style="float: right;" onclick="javascript:goSave()"/>
+			<input id="btnWriteOracle" name="btnWriteOracle" type="button" value="게시글 저장" style="float: right;"/>
+			<input id="subBtn" type="button" value="몽고DB저장" style="float: right;" onclick="javascript:goSaveMongo()"/>
 		</div>
 		
 	<!-- tomcat에서 module Path 에 따라서 경로 달라짐 -->

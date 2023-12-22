@@ -3,7 +3,7 @@
  */
 
 // 몽고db 저장 함수
-function goSave() {
+function goSaveMongo() {
     console.log("gosave 호출");
 
 
