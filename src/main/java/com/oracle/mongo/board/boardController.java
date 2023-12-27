@@ -16,27 +16,39 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import javax.inject.Inject;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpSession;
+
+import org.apache.poi.hwpf.usermodel.Table;
 import org.bson.Document;
+import org.bson.conversions.Bson;
+import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
+import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
-import org.springframework.web.multipart.MultipartFile;
 
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.MongoIterable;
+import com.mongodb.client.model.DeleteOneModel;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Sorts;
 import com.mongodb.client.model.UpdateOneModel;
 import com.mongodb.client.model.UpdateOptions;
 import com.mongodb.client.model.WriteModel;
-
+import com.mongodb.gridfs.GridFSFile;
 import com.oracle.mongo.oracle.OracleConnect;
 
 import net.sf.json.JSONArray;
@@ -44,76 +56,12 @@ import net.sf.json.JSONObject;
 
 @Controller
 public class boardController{
-
-	//@Autowired
-	//private MongoTemplate mongoTemplate;
-	
+	 @Inject
+	  private MongoTemplate mongoTemplate;
 	private static final String TABLE_NAME = "BOARD";
-	
-	private Connection conn = null;
-	private Statement psmt = null;
-	private PreparedStatement stmt = null;
-	private ResultSet rs = null;
-	
-	MongoClient mongoClient = null;
-	MongoDatabase database = null;
-	MongoCollection<Document> collection = null;
-	
-	/*
-	 * 오라클 드라이버 연결
-	 */
-	public void connect() {
-        try {
-            Class.forName("oracle.jdbc.driver.OracleDriver");
-            System.out.println("오라클 드라이버 연결 전");
-            conn = DriverManager.getConnection(OracleConnect.URL, OracleConnect.USER, OracleConnect.PASSWORD);
-            System.out.println("오라클 드라이버 연결 후");
-        } catch (ClassNotFoundException e) {
-            System.out.println("드라이버 로딩 실패");
-            e.printStackTrace();
-        } catch (SQLException e) {
-            System.out.println("DB 연결 실패");
-            e.printStackTrace();
-        }
-    }
-
-	/*
-	 * 오라클 드라이브 연결해제
-	 */
-    public void disconnect() {
-        if (rs != null) {
-            try {
-                rs.close();
-            } catch (SQLException e) {
-                e.printStackTrace();
-            }
-        }
-        if (psmt != null) {
-            try {
-            	psmt.close();
-            } catch (SQLException e) {
-                e.printStackTrace();
-            }
-        }
-        if (stmt != null) {
-            try {
-            	stmt.close();
-            } catch (SQLException e) {
-                e.printStackTrace();
-            }
-        }
-        if (conn != null) {
-            try {
-                conn.close();
-            } catch (SQLException e) {
-                e.printStackTrace();
-            }
-        }
-    }
-	
-    
+   
     /*
-     * 오라클 DB에 삽입하기 위한 메서드
+     * 삽입 화면 진입
      */
     @RequestMapping(value="/boardWriteOracle", method = RequestMethod.GET)
 	public String boardWriteOracle() {
@@ -121,14 +69,31 @@ public class boardController{
 	    return "board/boardWriteOracle";
 	}
     
+    /*
+     * 오라클 DB에 삽입하기 위한 메서드
+     */
     @RequestMapping(value="/saveToOracle", method = RequestMethod.POST)
     public ResponseEntity<String> boardSaveOracle(@RequestParam("boardTitle") String boardTitle,
                                                   @RequestParam("boardContent") String boardContent,
                                                   @RequestParam("boardWriter") String boardWriter) throws IOException {
         System.out.println("보드 글쓰기 저장 전");
-
+        Connection conn = null;
+		PreparedStatement psmt = null;
+		ResultSet rs = null;	
+		
         try {
-            connect();
+        	try {
+                Class.forName("oracle.jdbc.driver.OracleDriver");
+                System.out.println("오라클 드라이버 연결 전");
+                conn = DriverManager.getConnection(OracleConnect.URL, OracleConnect.USER, OracleConnect.PASSWORD);
+                System.out.println("오라클 드라이버 연결 후");
+            } catch (ClassNotFoundException e) {
+                System.out.println("드라이버 로딩 실패");
+                e.printStackTrace();
+            } catch (SQLException e) {
+                System.out.println("DB 연결 실패");
+                e.printStackTrace();
+            }
             try {
                 // 시퀀스를 사용하여 boardNo 값 생성
                 String sql =    " INSERT INTO           "
@@ -147,12 +112,14 @@ public class boardController{
                             +   "   , ?                 "
                             +   " )                     ";
                 System.out.println("sql 호출 후");
-                stmt = conn.prepareStatement(sql);
+
+                
+                psmt = conn.prepareStatement(sql);
                 System.out.println("sql 저장");
-                stmt.setString(1, boardTitle);
-                stmt.setString(2, boardContent);
-                stmt.setString(3, boardWriter);
-                stmt.executeUpdate();
+                psmt.setString(1, boardTitle);
+                psmt.setString(2, boardContent);
+                psmt.setString(3, boardWriter);
+                psmt.executeUpdate();
 
                 return new ResponseEntity<>("게시글이 성공적으로 저장되었습니다.", HttpStatus.OK);
 
@@ -170,7 +137,27 @@ public class boardController{
             return new ResponseEntity<>("서버 오류: " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
 
         } finally {
-            disconnect();
+        	if (rs != null) {
+                try {
+                    rs.close();
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                }
+            }
+            if (psmt != null) {
+                try {
+                	psmt.close();
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                }
+            }
+            if (conn != null) {
+                try {
+                    conn.close();
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                }
+            }
         }
     }
 
@@ -190,6 +177,10 @@ public class boardController{
 	@ResponseBody
 	public JSONObject boardMongoList() {
 		
+		MongoClient mongoClient = null;
+		MongoDatabase database = null;
+		MongoCollection<Document> collection = null;
+		
 		List<Map<String, Object>> list = new ArrayList<>();
 		
 		
@@ -197,6 +188,7 @@ public class boardController{
 		/* Query query = new Query().with(new Sort(Direction.DESC, "boardNo"));   */
 		// OMCBoard를 찾아서 docs에 저장
 		//List<Document> docs = mongoTemplate.find(query, Document.class, "OMCBoard");
+		
 		try {
 	        mongoClient = MongoClients.create("mongodb://localhost:27017");
 	        database = mongoClient.getDatabase("OMCBoard"); 
@@ -256,9 +248,27 @@ public class boardController{
 	 */
 	 @RequestMapping(value ="/saveToMongoDB", method = RequestMethod.POST)
 	 public ResponseEntity saveToMongoDB() throws IOException {
+		Connection conn = null;
+		Statement stmt = null;
+		ResultSet rs = null;
+		MongoClient mongoClient = null;
+		MongoDatabase database = null;
+		MongoCollection<Document> collection = null;
+		 
 		System.out.println("boardSaveMongo 저장 컨트롤러");
 		try {
-			connect();
+			try {
+	            Class.forName("oracle.jdbc.driver.OracleDriver");
+	            System.out.println("오라클 드라이버 연결 전");
+	            conn  = DriverManager.getConnection(OracleConnect.URL, OracleConnect.USER, OracleConnect.PASSWORD);
+	            System.out.println("오라클 드라이버 연결 후");
+	        } catch (ClassNotFoundException e) {
+	            System.out.println("드라이버 로딩 실패");
+	            e.printStackTrace();
+	        } catch (SQLException e) {
+	            System.out.println("DB 연결 실패");
+	            e.printStackTrace();
+	        }
 			try {
 				mongoClient = MongoClients.create("mongodb://localhost:27017");
 		        database = mongoClient.getDatabase("OMCBoard"); 
@@ -268,8 +278,8 @@ public class boardController{
 		        String sql = "SELECT * FROM BOARD";
 		        
 		        try {
-		        	psmt = conn.createStatement();
-		        	rs = psmt.executeQuery(sql);
+		        	stmt = conn.createStatement();
+		        	rs = stmt.executeQuery(sql);
 		        	
 		        	while (rs.next()) {
 		        		int boardNo = rs.getInt("boardNo");
@@ -346,10 +356,145 @@ public class boardController{
 			e.printStackTrace();
 			return ResponseEntity.status(500).body("{\"message\":\"" + e.getMessage() + "\"}");
 		} finally {
-			disconnect();
+			if (rs != null) {
+	            try {
+	                rs.close();
+	            } catch (SQLException e) {
+	                e.printStackTrace();
+	            }
+	        }
+	        if (stmt != null) {
+	            try {
+	            	stmt.close();
+	            } catch (SQLException e) {
+	                e.printStackTrace();
+	            }
+	        }
+	        if (conn != null) {
+	            try {
+	                conn.close();
+	            } catch (SQLException e) {
+	                e.printStackTrace();
+	            }
+	        }
 		}
-	 }		
+	 }
+	 
+	 /**
+	  * 게시물 삭제 메서드(몽고DB, ORACLE DB)
+	  * @param boardNo
+	  * @return "redirect:/board";
+	  */
+	 @RequestMapping(value="/deletePost", method = RequestMethod.POST)
+	 public String deletePost(@RequestParam("boardNo") int boardNo) {
+		 MongoClient mongoClient = null;
+		 MongoDatabase database = null;
+		 MongoCollection<Document> collection = null;
+		 Connection conn = null;
+		 PreparedStatement psmt = null;
+		 ResultSet rs = null;	
+		 
+
+		 try {
+			 try {
+		            Class.forName("oracle.jdbc.driver.OracleDriver");
+		            System.out.println("오라클 드라이버 연결 전");
+		            conn  = DriverManager.getConnection(OracleConnect.URL, OracleConnect.USER, OracleConnect.PASSWORD);
+		            System.out.println("오라클 드라이버 연결 후");
+		        } catch (ClassNotFoundException e) {
+		            System.out.println("드라이버 로딩 실패");
+		            e.printStackTrace();
+		        } catch (SQLException e) {
+		            System.out.println("DB 연결 실패");
+		            e.printStackTrace();
+		        }
+			 
+		        mongoClient = MongoClients.create("mongodb://localhost:27017");
+		        database = mongoClient.getDatabase("OMCBoard"); 
+		        collection = database.getCollection("OMCBoard"); 
+				
+		        Bson deletePost = Filters.eq("boardNo", boardNo);
+		        collection.deleteMany(deletePost);
+		        
+		        try {
+		        	List<DeleteOneModel<Document>> deleteData = new ArrayList<>();
+			        String sql =	 "DELETE FROM WHERE" + ""+TABLE_NAME+""+ "boardNo = ?";
+			        System.out.println(sql);
+			        
+			        psmt = conn.prepareStatement(sql);
+			        psmt.setInt(1, boardNo);
+			        System.out.println("sql삭제");
+			        
+			        
+		        } catch (SQLException e) {
+		        	e.printStackTrace();
+		        	System.out.println(e.getMessage());
+		        } 
+		        
+		 } catch(Exception e) {
+			 e.printStackTrace();
+			 System.out.println(e.getMessage());
+		 } finally {
+			 if(mongoClient != null) {
+				 mongoClient.close();
+			 }
+			 if (rs != null) {
+		            try {
+		                rs.close();
+		            } catch (SQLException e) {
+		                e.printStackTrace();
+		            }
+		        }
+		        if (psmt != null) {
+		            try {
+		            	psmt.close();
+		            } catch (SQLException e) {
+		                e.printStackTrace();
+		            }
+		        }
+		        if (conn != null) {
+		            try {
+		                conn.close();
+		            } catch (SQLException e) {
+		                e.printStackTrace();
+		            }
+		        }
+		 }
+		 
+		 return "redirect:/board";
+	 }
+	 
+	 /**
+	  * 상세화면 보기 페이지
+	  * @param model
+	  * @param request
+	  * @return
+	  */
+	@RequestMapping("/detail.do")
+	public String detailPost(Model model,HttpServletRequest request) {
+	     
 		
+		HttpSession session = request.getSession();
+	    int boardNo = Integer.parseInt(session.getAttribute("boardNo").toString());	    
+	    Query query = new Query(Criteria.where("boardNo").is(boardNo));
+		Document doc = mongoTemplate.findOne(query, Document.class, "OMCBoard");
+		
+		Map<String, Object> map = new HashMap<String, Object>();
+		
+		
+		if (doc != null) {
+		    map.putAll(doc);
+		}
+		
+		model.addAttribute("board", map);
+		System.out.println("보드컨트롤러 상세화면");
+		
+		return "board/boardDetail";
+		
+	}
+	
+	
+
 		/*
 		try {
 			 
@@ -496,6 +641,23 @@ public class boardController{
 	 }
 	 */
 	 
+	/**
+	 * 게시물 번호를 통해 세션에 저장하는 메서드
+	 * @param request
+	 * @param body
+	 * @return new ResponseEntity<>("Success", HttpStatus.OK);
+	 */
+	@RequestMapping(value = "/setSessionNo", method = RequestMethod.POST)
+	public ResponseEntity<String> setSessionNo(HttpServletRequest request, @RequestBody Map<String, String> body) {
+	    
+		// 1. 세션으로 저장해서 반환
+		HttpSession session = request.getSession();
+	    String boardNo = body.get("boardNo");
+	    session.setAttribute("boardNo", boardNo);	    
+	    System.out.println("세션 번호 받기- 세션 ID: " + session.getId() + ", boardNo: " + boardNo);
+	    return new ResponseEntity<>("Success", HttpStatus.OK);
+	}
+	
 	 // LocalDateTime으로 변환하기 위한 메서드
 	 public LocalDateTime convertToLocalDateTimeViaInstant(Date dateToConvert) {
 	     return dateToConvert.toInstant()

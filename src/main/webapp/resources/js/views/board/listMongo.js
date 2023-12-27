@@ -45,6 +45,35 @@ $(document).ready(function() {
 			cellsubmit: 'clientArray',
 			rowClickFocus: false,
 			rowClickColor: 'default',
+			
+			/* 상세화면 들어가기 */
+			ondblClickRow: function(rowid, iRow, iCol, e) {
+	            var cm = $(this).jqGrid('getGridParam', 'colModel');
+				// 컬럼을 더블클릭한 경우
+	            if (cm[iCol].name === 'boardTitle' 
+					|| cm[iCol].name === 'boardNo' 
+					|| cm[iCol].name === 'boardWriter'
+					|| cm[iCol].name === 'boardContent'
+					|| cm[iCol].name === 'boardFileName'
+					|| cm[iCol].name === 'boardCreateTime'
+					|| cm[iCol].name === 'boardModifiTime') { 
+	                $.ajax({
+	                    type: 'POST',   
+						url: '/setSessionNo',
+	                    contentType: 'application/json',
+	                    data: JSON.stringify({
+	                        boardNo: rowid
+	                    }),
+	                    success: function() {
+	                        $.get('detail.do', function(data) {
+								dialog.html(data); // Dialog 내용 변경
+			                    dialog.dialog("open");
+	                        });
+	                    }
+	                });
+	            }
+	        },
+			
 			emptyrecords: '조회된 데이타가 없습니다.'
 	});
 	
