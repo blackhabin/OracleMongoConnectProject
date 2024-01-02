@@ -11,15 +11,17 @@ $(document).ready(function() {
 		
 		// 수정 페이지 로드 함수
 		console.log("getScript 호출");
+		
 		$('.modify-link').click(function(e) {
 			e.preventDefault();
+			var boardNo = $(this).data('no');
 			$.ajax({
 				type: 'POST',
 				url: '/setSessionNo',
 				contentType: 'application/json',
 				data: JSON.stringify({
-					boardNo: $(this).data('boardNo')
-				}),
+                    boardNo: boardNo
+                }),
 				success: function() {
 					$.get('modify.do', function(data) {			
 						dialog.html(data);

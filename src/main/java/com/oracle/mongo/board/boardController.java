@@ -23,8 +23,10 @@ import javax.servlet.http.HttpSession;
 import org.apache.poi.hwpf.usermodel.Table;
 import org.bson.Document;
 import org.bson.conversions.Bson;
+import org.springframework.data.mongodb.core.FindAndModifyOptions;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.CriteriaDefinition;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.http.HttpStatus;
@@ -36,6 +38,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
@@ -382,6 +385,7 @@ public class boardController{
 	 
 	 /**
 	  * 게시물 삭제 메서드(몽고DB, ORACLE DB)
+	  * boardNo를 찾아 mongoDb에서 먼저 삭제한 후, 같은 boardNo를 가진 데이터를 oracle DB에서 삭제함
 	  * @param boardNo
 	  * @return "redirect:/board";
 	  */
@@ -491,8 +495,81 @@ public class boardController{
 		
 	}
 	
+	/**
+	 * 게시물 수정 폼 호출 메서드
+	 * @param model
+	 * @param request
+	 * @return "board/modify";
+	 */
+	@RequestMapping("/modify.do")
+	public String modifyBoard(Model model, HttpServletRequest request) {
+	    HttpSession session = request.getSession();
+	    int boardNo = Integer.parseInt(session.getAttribute("boardNo").toString());
+
+	    // MongoDB에서 게시글 정보를 가져옴
+	    Query query = new Query(Criteria.where("boardNo").is(boardNo));
+	    Document board = mongoTemplate.findOne(query, Document.class, "OMCBoard");
+
+	    if (board == null) {
+	        System.out.println("해당 번호의 게시글이 DB에 없습니다.");
+	        return "board/error";  // 에러 페이지로 리다이렉트
+	    }
+
+	    // 게시글 정보를 가져옴
+	    String boardTitle = board.getString("boardTitle");
+	    String boardContent = board.getString("boardContent");
+	    String boardWriter = board.getString("boardWriter");
+
+	    Update update = new Update();
+	    update.set("boardNo", boardNo);
+	    update.set("boardTitle", boardTitle);
+	    update.set("boardContent", boardContent);
+	    update.set("boardWriter", boardWriter);
+	    update.set("boardModifiTime", LocalDateTime.now());
+	    
+	    FindAndModifyOptions options = FindAndModifyOptions.options();
+	    Document updatePost = mongoTemplate.findAndModify(query, update, options, Document.class, "OMCBoard");
+	    mongoTemplate.save(updatePost, "OMCBoard");
+	    
+	    model.addAttribute(mongoTemplate);
+	    
+		System.out.println("보드컨트롤러 업데이트 화면");
+		return "board/boardModify";
+	}
 	
 
+	/**
+	 * 게시물 수정 메서드
+	 * @param no
+	 * @param title
+	 * @param content
+	 * @param writer
+	 * @param file
+	 * @return new ResponseEntity<>("{\"status\":\"SUCCESS\"}", HttpStatus.OK);
+	 * @throws IOException
+	 */
+	@RequestMapping(value = "/updatePost", method = RequestMethod.POST)
+	public ResponseEntity<String> updatePost(@RequestParam("boardNo") int boardNo,
+	                         @RequestParam("boardTitle") String boardTitle,
+	                         @RequestParam("boardContent") String boardContent,
+	                         @RequestParam("boardWriter") String boardWriter) {
+
+		Query query = new Query(Criteria.where("boardNo").is(boardNo));
+		Update update = new Update();
+    	update.set("boardNo", boardNo);
+    	update.set("boardTitle", boardTitle);
+    	update.set("boardContent", boardContent);
+    	update.set("boardModifiTime", LocalDateTime.now());
+    	
+    	FindAndModifyOptions options = FindAndModifyOptions.options().returnNew(true);
+    	Document updatePost = mongoTemplate.findAndModify(query, update, options, Document.class, "OMCBboard");
+    
+    	mongoTemplate.save(updatePost, "OMCBboard");
+		
+	    System.out.println("보드컨트롤러 업데이트");
+	    return new ResponseEntity<>("{\"status\":\"SUCCESS\"}", HttpStatus.OK);
+	}
+	
 		/*
 		try {
 			 
