@@ -418,13 +418,11 @@ public class boardController{
 		        
 		        try {
 		        	List<DeleteOneModel<Document>> deleteData = new ArrayList<>();
-			        String sql =	 "DELETE FROM WHERE" + ""+TABLE_NAME+""+ "boardNo = ?";
+			        String sql =	 "DELETE FROM " + ""+TABLE_NAME+ ""+ " WHERE boardNo = " + boardNo;
 			        System.out.println(sql);
 			        
 			        psmt = conn.prepareStatement(sql);
-			        psmt.setInt(1, boardNo);
-			        System.out.println("sql삭제");
-			        
+			        rs = psmt.executeQuery();
 			        
 		        } catch (SQLException e) {
 		        	e.printStackTrace();
